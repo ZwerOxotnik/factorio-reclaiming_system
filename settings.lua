@@ -27,5 +27,11 @@ data:extend({
 		minimum_value = 1,
 		maximum_value = 1024,
 		hidden = false
+	}, {
+		type = "bool-setting",
+		name = "recl_is_add_capsule",
+		setting_type = "startup",
+		default_value = true,
+		hidden = false
 	}
 })
