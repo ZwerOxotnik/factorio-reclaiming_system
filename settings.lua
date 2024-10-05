@@ -33,5 +33,11 @@ data:extend({
 		setting_type = "startup",
 		default_value = true,
 		hidden = false
+	}, {
+		type = "bool-setting",
+		name = "recl_is_auto_reclaim_on",
+		setting_type = "runtime-global",
+		default_value = false,
+		hidden = false
 	}
 })

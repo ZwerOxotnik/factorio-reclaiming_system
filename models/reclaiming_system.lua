@@ -1,18 +1,21 @@
 
----@class EmptyModule : module
+---@class ReclaimingSystem : module
 local M = {}
 
 
 --#region Global data
---local _players_data
-local on_pre_entity_changed_force
-local on_entity_changed_force
+local _mod_data
+local _prohibited_entities
 --#endregion
 
 
 --#region Constants
 local call = remote.call
 --#endregion
+
+
+local on_pre_entity_changed_force
+local on_entity_changed_force
 
 
 local is_on_pre_entity_changed_force_event_active = false
@@ -25,6 +28,8 @@ if script.active_mods.EasyAPI then
 end
 
 
+---@param player LuaPlayer
+---@param target_position MapPosition
 function M.reclaim(player, target_position)
 	local player_force = player.force
 	local enemy_forces = {}
@@ -73,8 +78,16 @@ function M.reclaim(player, target_position)
 	if not is_on_pre_entity_changed_force_event_active and
 		not is_on_entity_changed_force_event_active
 	then
-		for _, entity in pairs(entites_for_capturing) do
-			entity.force = player_force
+		if next(_prohibited_entities) == nil then
+			for _, entity in pairs(entites_for_capturing) do
+				entity.force = player_force
+			end
+		else
+			for _, entity in pairs(entites_for_capturing) do
+				if not _prohibited_entities[entity.unit_number] then
+					entity.force = player_force
+				end
+			end
 		end
 	elseif is_on_pre_entity_changed_force_event_active and
 		not is_on_entity_changed_force_event_active
@@ -83,11 +96,23 @@ function M.reclaim(player, target_position)
 			entity = nil,
 			next_force = player_force
 		}
-		for _, entity in pairs(entites_for_capturing) do
-			pre_event_data.entity = entity
-			raise_event(on_pre_entity_changed_force, pre_event_data)
-			if entity.valid then
-				entity.force = player_force
+		if next(_prohibited_entities) == nil then
+			for _, entity in pairs(entites_for_capturing) do
+				pre_event_data.entity = entity
+				raise_event(on_pre_entity_changed_force, pre_event_data)
+				if entity.valid then
+					entity.force = player_force
+				end
+			end
+		else
+			for _, entity in pairs(entites_for_capturing) do
+				if not _prohibited_entities[entity.unit_number] then
+					pre_event_data.entity = entity
+					raise_event(on_pre_entity_changed_force, pre_event_data)
+					if entity.valid then
+						entity.force = player_force
+					end
+				end
 			end
 		end
 	elseif not is_on_pre_entity_changed_force_event_active and
@@ -97,11 +122,22 @@ function M.reclaim(player, target_position)
 			entity = nil,
 			next_force = player_force
 		}
-		for _, entity in pairs(entites_for_capturing) do
-			event_data.entity = entity
-			event_data.prev_force = entity.force
-			entity.force = player_force
-			raise_event(on_entity_changed_force, event_data)
+		if next(_prohibited_entities) == nil then
+			for _, entity in pairs(entites_for_capturing) do
+				event_data.entity = entity
+				event_data.prev_force = entity.force
+				entity.force = player_force
+				raise_event(on_entity_changed_force, event_data)
+			end
+		else
+			for _, entity in pairs(entites_for_capturing) do
+				if not _prohibited_entities[entity.unit_number] then
+					event_data.entity = entity
+					event_data.prev_force = entity.force
+					entity.force = player_force
+					raise_event(on_entity_changed_force, event_data)
+				end
+			end
 		end
 	elseif is_on_pre_entity_changed_force_event_active and
 		is_on_entity_changed_force_event_active
@@ -114,20 +150,36 @@ function M.reclaim(player, target_position)
 			entity = nil,
 			prev_force = nil
 		}
-		for _, entity in pairs(entites_for_capturing) do
-			pre_event_data.entity = entity
-			raise_event(on_pre_entity_changed_force, pre_event_data)
-			if entity.valid then
-				event_data.entity = entity
-				event_data.prev_force = entity.force
-				entity.force = player_force
-				raise_event(on_entity_changed_force, event_data)
+		if next(_prohibited_entities) == nil then
+			for _, entity in pairs(entites_for_capturing) do
+				pre_event_data.entity = entity
+				raise_event(on_pre_entity_changed_force, pre_event_data)
+				if entity.valid then
+					event_data.entity = entity
+					event_data.prev_force = entity.force
+					entity.force = player_force
+					raise_event(on_entity_changed_force, event_data)
+				end
+			end
+		else
+			for _, entity in pairs(entites_for_capturing) do
+				if not _prohibited_entities[entity.unit_number] then
+					pre_event_data.entity = entity
+					raise_event(on_pre_entity_changed_force, pre_event_data)
+					if entity.valid then
+						event_data.entity = entity
+						event_data.prev_force = entity.force
+						entity.force = player_force
+						raise_event(on_entity_changed_force, event_data)
+					end
+				end
 			end
 		end
 	end
 end
 
 
+---@param event EventData.on_script_trigger_effect
 function M.on_script_trigger_effect(event)
 	if event.effect_id ~= "reclaim" then return end
 	local source = event.source_entity
@@ -137,20 +189,41 @@ function M.on_script_trigger_effect(event)
 end
 
 
+function M.auto_reclaim(event)
+	if not settings.startup["recl_is_auto_reclaim_on"].value then return end
+
+	-- TODO: optimize
+	local reclaim = M.reclaim
+	for _, player in pairs(game.connected_players) do
+		reclaim(player, player.position)
+	end
+end
+
+
 --#region Pre-game stage
 
 function M.add_remote_interface()
 	-- https://lua-api.factorio.com/latest/LuaRemote.html
 	remote.remove_interface("reclaiming_system") -- For safety
 	remote.add_interface("reclaiming_system", {
-		-- get_mod_data = function() return _mod_data end,
-		-- get_internal_data = function(name) return _mod_data[name] end,
+		get_mod_data = function() return _mod_data end,
+		---@param name string
+		get_internal_data = function(name) return _mod_data[name] end,
+		---@param entity LuaEntity
+		prohibit_entity = function(entity)
+			_prohibited_entities[entity.unit_number] = entity
+		end,
+		---@param unit_number uint
+		allow_entity = function(unit_number)
+			_prohibited_entities[unit_number] = nil
+		end,
 		reclaim = M.reclaim,
 	})
 end
 
 function M.link_data()
-	--_players_data = global.players
+	_mod_data = global._mod_data
+	_prohibited_entities = _mod_data._prohibited_entities
 
 	if script.active_mods.EasyAPI then
 		on_pre_entity_changed_force = call("EasyAPI", "get_event_name", "on_pre_entity_changed_force")
@@ -160,13 +233,17 @@ end
 
 
 function M.update_global_data()
-	--global.players = global.players or {}
+	global._mod_data = global._mod_data or {}
+	_mod_data = global._mod_data
+	_mod_data._prohibited_entities = _mod_data._prohibited_entities or {}
 
 	M.link_data()
 
-	--for player_index, player in pairs(game.players) do
-	--	-- delete UIs, etc
-	--end
+	for unit_number, entity in pairs(_prohibited_entities) do
+		if not entity.valid then
+			_prohibited_entities[unit_number] = nil
+		end
+	end
 end
 
 function M.reclaim_command(cmd)
@@ -193,6 +270,10 @@ end
 
 M.commands = {
 	reclaim = M.reclaim_command,
+}
+
+M.on_nth_tick = {
+	[60 * 5]  = M.auto_reclaim,
 }
 
 

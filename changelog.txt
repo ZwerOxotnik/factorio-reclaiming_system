@@ -1,4 +1,14 @@
 ﻿---------------------------------------------------------------------------------------------------
+Version: 0.9.0
+Date: 2024-10-05
+  Features:
+    - Added auto reclaim mode
+  Scripting:
+    - Added "get_mod_data", "get_internal_data", "prohibit_entity", "allow_entity" into the remote interface
+  Locale:
+    - Addded Ukrainian translation (thanks to @Met_en_Bouldry on crowdin)
+    - Translations: https://crowdin.com/project/factorio-mods-localization (thank you for contributions, I really appreciate it)
+---------------------------------------------------------------------------------------------------
 Version: 0.8.0
 Date: 2024-09-28
   Features:
