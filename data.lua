@@ -132,9 +132,12 @@ local capsule = lazyAPI.add_prototype("capsule", projectile.name, {
 local recipe = lazyAPI.add_prototype("recipe", capsule.name, {
 	enabled = true,
 	energy_required = 60,
+	icon = capsule.icon,
+	icon_size = capsule.icon_size,
+	icon_mipmaps = capsule.icon_mipmaps,
 	ingredients = {
-		{"iron-plate", 5},
-		{"electronic-circuit", 10}
+		{type ="item", name = "electronic-circuit", amount = 10},
+		{type ="item", name = "iron-plate", amount = 5},
 	},
-	result = capsule.name
+	results = {{type ="item", name = capsule.name, amount = 1}},
 })

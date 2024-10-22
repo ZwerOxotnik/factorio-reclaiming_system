@@ -222,7 +222,7 @@ function M.add_remote_interface()
 end
 
 function M.link_data()
-	_mod_data = global._mod_data
+	_mod_data = storage._mod_data
 	_prohibited_entities = _mod_data._prohibited_entities
 
 	if script.active_mods.EasyAPI then
@@ -233,8 +233,8 @@ end
 
 
 function M.update_global_data()
-	global._mod_data = global._mod_data or {}
-	_mod_data = global._mod_data
+	storage._mod_data = storage._mod_data or {}
+	_mod_data = storage._mod_data
 	_mod_data._prohibited_entities = _mod_data._prohibited_entities or {}
 
 	M.link_data()
@@ -273,7 +273,7 @@ M.commands = {
 }
 
 M.on_nth_tick = {
-	[60 * 5]  = M.auto_reclaim,
+	-- [60 * 5]  = M.auto_reclaim, -- Factorio messed up settings -- TODO: recheck later
 }
 
 
